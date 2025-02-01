@@ -1,0 +1,19 @@
+{
+  "name": "pogo-mega-tracker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "immer": "^10.1.1",
+    "lodash": "^4.17.21",
+    "lowdb": "^7.0.1",
+    "react": "^19.0.0",
+    "zod": "^3.24.1"
+  }
+}
