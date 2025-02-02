@@ -1,5 +1,4 @@
-import { useRpcMutation, useRpcQuery } from "@robinplatform/toolkit/react/rpc";
-import React from "react";
+import React, { useEffect } from "react";
 import { ScrollWindow } from "../components/ScrollWindow";
 import {
   SelectPage,
@@ -14,9 +13,10 @@ import {
   megaLevelPlanForPokemonRpc,
   setDateOfEventRpc,
 } from "../server/planner.server";
-import { fetchDbRpc } from "../server/db.server";
+import { useDb } from "../server/db.server";
 import { TimeSlider } from "../components/EditableField";
 import { useCurrentSecond } from "../components/CountdownTimer";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 function DateText({ date }: { date: Date }) {
   const { now } = useCurrentSecond();
@@ -43,7 +43,9 @@ function DateText({ date }: { date: Date }) {
 }
 
 function EmptyDay({ pokemonId, date }: { pokemonId: string; date: Date }) {
-  const { mutate: addPlannedEvent } = useRpcMutation(addPlannedEventRpc, {});
+  const { mutate: addPlannedEvent } = useMutation({
+    mutationFn: addPlannedEventRpc,
+  });
 
   return (
     <div style={{ width: "12rem" }}>
@@ -59,12 +61,12 @@ function EmptyDay({ pokemonId, date }: { pokemonId: string; date: Date }) {
 }
 
 function EventInfo({ event }: { event: MegaEvolveEvent }) {
-  const { mutate: deletePlannedEvent, isLoading: deleteLoading } =
-    useRpcMutation(deletePlannedEventRpc, {});
-  const { mutate: setEventDate, isLoading: setDateLoading } = useRpcMutation(
-    setDateOfEventRpc,
-    {}
-  );
+  const { mutate: deletePlannedEvent, isPending: deleteLoading } = useMutation({
+    mutationFn: deletePlannedEventRpc,
+  });
+  const { mutate: setEventDate, isPending: setDateLoading } = useMutation({
+    mutationFn: setDateOfEventRpc,
+  });
 
   const { id, title, date } = event;
 
@@ -144,17 +146,20 @@ function DayBox({ children }: { children: React.ReactNode }) {
 export function LevelUpPlanner() {
   const selectedMonId = useSelectedPokemonId() ?? "";
 
-  const { data: days, refetch } = useRpcQuery(megaLevelPlanForPokemonRpc, {
-    id: selectedMonId,
+  const { data: days, refetch } = useQuery({
+    queryKey: ["megaLevelPlanForPokemonRpc", selectedMonId] as const,
+    queryFn: (ctx) => megaLevelPlanForPokemonRpc({ id: ctx.queryKey[1] }),
   });
 
-  // Whenever the db is refetched due to changes, we should also refetch this query
-  useRpcQuery(fetchDbRpc, {}, { onSuccess: () => refetch() });
+  const { mutate: clearPlans, isPending: clearPlansLoading } = useMutation({
+    mutationFn: clearPokemonRpc,
+  });
 
-  const { mutate: clearPlans, isLoading: clearPlansLoading } = useRpcMutation(
-    clearPokemonRpc,
-    {}
-  );
+  const db = useDb();
+
+  useEffect(() => {
+    refetch();
+  }, [db, refetch]);
 
   return (
     <div className={"col full robin-rounded robin-gap robin-pad"}>

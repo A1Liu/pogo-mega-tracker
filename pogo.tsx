@@ -3,10 +3,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./ext.css";
 import { usePageState } from "./components/PageState";
-// import { EventPlanner } from "./pages/EventPlanner";
+import { EventPlanner } from "./pages/EventPlanner";
 import { PokemonManager } from "./pages/PokemonManager";
-// import { CostTables } from "./pages/CostTables";
-// import { LevelUpPlanner } from "./pages/LevelUpPlanner";
+import { CostTables } from "./pages/CostTables";
+import { LevelUpPlanner } from "./pages/LevelUpPlanner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
@@ -18,12 +18,12 @@ function Page() {
     case "pokemon":
       return <PokemonManager />;
 
-    //   case "planner":
-    //     return <EventPlanner />;
-    //   case "tables":
-    //     return <CostTables />;
-    //   case "levelup":
-    //     return <LevelUpPlanner />;
+    case "planner":
+      return <EventPlanner />;
+    case "tables":
+      return <CostTables />;
+    case "levelup":
+      return <LevelUpPlanner />;
 
     default:
       return <></>;
