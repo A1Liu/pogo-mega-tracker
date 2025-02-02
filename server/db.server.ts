@@ -1,11 +1,5 @@
-/// <reference path="./lowdb.d.ts" />
-
 import { z } from "zod";
-import * as fs from "fs";
-import * as path from "path";
-import produce from "immer";
-import * as os from "os";
-import { onAppStart, Topic } from "@robinplatform/toolkit/daemon";
+import { produce } from "immer";
 import {
   computeEvolve,
   isCurrentMega,
@@ -14,8 +8,9 @@ import {
   Species,
 } from "../domain-utils";
 import { HOUR_MS } from "../math";
-import { Low } from "lowdb";
-import { JSONFile } from "lowdb/node";
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { ZustandIdbStorage } from "../persist-utils";
 
 export type PageState = z.infer<typeof PageState>;
 const PageState = z.object({
@@ -38,8 +33,10 @@ const PogoDb = z.object({
   pageState: PageState,
 });
 
-const DB_FILE = path.join(os.homedir(), ".a1liu-robin-pogo-db");
-const DB = new Low<PogoDb>(new JSONFile(DB_FILE));
+interface Actions {
+  withDb: (mut: (db: PogoDb) => void) => Promise<PogoDb>;
+}
+
 const EmptyDb: PogoDb = {
   pokedex: {},
   pokemon: {},
@@ -48,39 +45,36 @@ const EmptyDb: PogoDb = {
     selectedPage: "pokemon",
   },
 };
-DB.data = EmptyDb;
 
-onAppStart(async () => {
-  try {
-    await DB.read();
-    DB.data = PogoDb.parse(DB.data);
-  } catch (e) {
-    console.log("Failed to read from JSON", e);
-  }
-});
+export const useDb = create<PogoDb & { actions: Actions }>()(
+  persist(
+    (set, get) => {
+      return {
+        ...EmptyDb,
+        actions: {
+          withDb: async (mut) => {
+            const { actions, ...dbData } = get();
+            const newDb = produce(dbData, mut);
+            if (newDb !== dbData) {
+              console.log("DB access caused mutation");
 
-let dbModifiedTopic = undefined as unknown as Topic<{}>;
+              set(newDb);
+            }
 
-onAppStart(async () => {
-  dbModifiedTopic = await Topic.createTopic(["pogo"], "db");
-});
+            return newDb;
+          },
+        },
+      };
+    },
+    {
+      name: "pogo-db",
+      storage: ZustandIdbStorage,
+      partialize: ({ actions, ...rest }) => rest,
+    },
+  ),
+);
 
-export async function withDb(mut: (db: PogoDb) => void) {
-  const newDb = produce(DB.data, mut);
-  if (newDb !== DB.data) {
-    console.log("DB access caused mutation");
-
-    // TODO: don't do this on literally every write. Maybe do it once a second.
-    await fs.promises.writeFile(DB_FILE, JSON.stringify(newDb));
-
-    await dbModifiedTopic
-      .publish({})
-      .catch((e: any) => console.error("err", e));
-    DB.data = newDb;
-  }
-
-  return newDb;
-}
+export const withDb = useDb.getState().actions.withDb;
 
 export async function setDbValueRpc({ db }: { db: PogoDb }) {
   return await withDb((prev) => {
@@ -93,11 +87,11 @@ export async function setDbValueRpc({ db }: { db: PogoDb }) {
 }
 
 export async function fetchDbRpc(): Promise<PogoDb> {
-  return DB.data ?? EmptyDb;
+  return useDb.getState() ?? EmptyDb;
 }
 
 export function getDB(): PogoDb {
-  return DB.data ?? EmptyDb;
+  return useDb.getState() ?? EmptyDb;
 }
 
 export async function addPokemonRpc({ pokedexId }: { pokedexId: number }) {
@@ -125,7 +119,7 @@ export async function clearCurrentMegaRpc() {
       const now = new Date();
       const prevMegaEnd = new Date(mostRecentMega.lastMegaEnd);
       mostRecentMega.lastMegaEnd = new Date(
-        Math.min(now.getTime(), prevMegaEnd.getTime())
+        Math.min(now.getTime(), prevMegaEnd.getTime()),
       ).toISOString();
     }
   });
@@ -152,7 +146,7 @@ export async function evolvePokemonRpc({ id }: { id: string }) {
 
     dexEntry.megaEnergyAvailable -= Math.min(
       dexEntry.megaEnergyAvailable,
-      nextData.megaEnergySpent
+      nextData.megaEnergySpent,
     );
 
     pokemon.lastMegaStart = nextData.lastMegaStart;
@@ -169,7 +163,7 @@ export async function evolvePokemonRpc({ id }: { id: string }) {
     if (mostRecentMega && mostRecentMega.id !== pokemon.id) {
       const prevMegaEnd = new Date(mostRecentMega.lastMegaEnd);
       mostRecentMega.lastMegaEnd = new Date(
-        Math.min(now.getTime(), prevMegaEnd.getTime())
+        Math.min(now.getTime(), prevMegaEnd.getTime()),
       ).toISOString();
     }
 
@@ -194,7 +188,7 @@ export async function setPokemonMegaEndRpc({
     const newMegaDate = new Date(newMegaEnd);
 
     const newMegaDateEightHoursBefore = new Date(
-      newMegaDate.getTime() - 8 * HOUR_MS
+      newMegaDate.getTime() - 8 * HOUR_MS,
     );
 
     const lastMegaStartDate = new Date(pokemon.lastMegaStart);

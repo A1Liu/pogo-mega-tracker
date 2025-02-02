@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { z } from "zod";
 import React from "react";
-import { fetchDbRpc, setPageStateRpc } from "../server/db.server";
+import { useDb } from "../server/db.server";
 import { ZustandIdbStorage } from "../persist-utils";
 
 const DefaultPage = "pokemon" as const;
@@ -77,7 +77,7 @@ export function useSetPokemon() {
 }
 
 export function SelectPokemon() {
-  const { data: db } = { data: {} as any }; // useRpcQuery(fetchDbRpc, {});
+  const db = useDb();
   const selectedPokemon = useSelectedPokemonId();
   const setPokemon = useSetPokemon();
 
