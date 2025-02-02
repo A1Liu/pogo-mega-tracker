@@ -1,31 +1,60 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { z } from "zod";
 import React from "react";
 import { fetchDbRpc, setPageStateRpc } from "../server/db.server";
+import { ZustandIdbStorage } from "../persist-utils";
 
 const DefaultPage = "pokemon" as const;
 
 // I'm not handling errors in this file, because... oh well. Whatever. Meh.
 const PageTypes = ["pokemon", "planner", "tables", "levelup"] as const;
 type PageType = (typeof PageTypes)[number];
-export const usePageState = create<{
-  page: PageType;
-  setPage: (a: PageType) => void;
-}>((set, get) => {
-  return {
-    page: DefaultPage,
-    setPage: (a) => set({ page: a }),
-  };
+
+export type PageState = z.infer<typeof PageState>;
+const PageState = z.object({
+  selectedPokemonId: z.string().optional().nullable(),
+  selectedPage: z.union([
+    z.literal("pokemon"),
+    z.literal("planner"),
+    z.literal("tables"),
+    z.literal("levelup"),
+  ]),
 });
 
+interface Actions {
+  setPage: (a: PageType) => void;
+  setPokemon: (a: string | null) => void;
+}
+
+export const usePageState = create<PageState & { actions: Actions }>()(
+  persist(
+    (set, _get) => {
+      return {
+        selectedPage: DefaultPage,
+        actions: {
+          setPage: (a) => set({ selectedPage: a }),
+          setPokemon: (a) => set({ selectedPokemonId: a }),
+        },
+      };
+    },
+    {
+      name: "page-state", // name of the item in the storage (must be unique)
+      storage: ZustandIdbStorage,
+      partialize: ({ actions, ...rest }) => rest,
+    },
+  ),
+);
+
 export function SelectPage() {
-  const { page, setPage } = usePageState();
+  const { selectedPage: page, actions } = usePageState();
 
   return (
     <div className={"col"}>
       <p>Page:</p>
       <select
         value={page}
-        onChange={(evt) => setPage(evt.target.value as PageType)}
+        onChange={(evt) => actions.setPage(evt.target.value as PageType)}
       >
         {PageTypes.map((page) => (
           <option key={page} value={page}>
@@ -38,18 +67,13 @@ export function SelectPage() {
 }
 
 export function useSelectedPokemonId() {
-  const { data: db } = { data: {} as any }; // useRpcQuery(fetchDbRpc, {});
+  const { selectedPokemonId } = usePageState();
 
-  return db?.pageState.selectedPokemonId;
+  return selectedPokemonId;
 }
 
 export function useSetPokemon() {
-  const { mutate: setPokemon } = { mutate: (a) => null as any }; // useRpcMutation(setPageStateRpc, {});
-
-  return React.useCallback(
-    (selectedPokemonId: string | null) => setPokemon({ selectedPokemonId }),
-    [setPokemon],
-  );
+  return usePageState.getState().actions.setPokemon;
 }
 
 export function SelectPokemon() {
