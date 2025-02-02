@@ -3,6 +3,9 @@ name: Build Static Pages
 on:
   workflow_dispatch:
 
+permissions:
+   contents: write
+
 jobs:
   deployment:
     runs-on: ubuntu-latest
