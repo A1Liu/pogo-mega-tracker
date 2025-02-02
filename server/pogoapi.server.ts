@@ -1,6 +1,5 @@
 import { z } from "zod";
 import _ from "lodash";
-import fetch from "node-fetch";
 
 // Simple code to perform GET endpoint calls
 // This is being done server-side instead of client-side

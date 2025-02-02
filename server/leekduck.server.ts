@@ -1,9 +1,5 @@
 import { z } from "zod";
 import _ from "lodash";
-import fetch from "node-fetch";
-import { getDB, PogoDb, withDb } from "./db.server";
-import { getMegaPokemon } from "./pogoapi.server";
-import { nextMegaDeadline, Pokemon, Species } from "../domain-utils";
 
 // Going to start by making a mega evolution planner.
 

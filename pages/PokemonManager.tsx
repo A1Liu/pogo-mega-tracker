@@ -1,17 +1,16 @@
-import { useRpcQuery, useRpcMutation } from "@robinplatform/toolkit/react/rpc";
-import React from "react";
+import React, { useEffect } from "react";
 import { refreshDexRpc, searchPokemonRpc } from "../server/pogo.server";
 import { ScrollWindow } from "../components/ScrollWindow";
-import "@robinplatform/toolkit/styles.css";
 import {
   addPokemonRpc,
   clearCurrentMegaRpc,
-  fetchDbRpc,
   setDbValueRpc,
+  useDb,
 } from "../server/db.server";
 import { PokemonInfo } from "../components/PokemonInfo";
 import { SelectPage } from "../components/PageState";
 import { useSelectOption } from "../components/EditableField";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 // TODO: planner for upcoming events
 // TODO: put POGO thingy into its own package on NPM, and debug why packages sorta dont work right now
@@ -23,7 +22,7 @@ function SelectSpecies({
   submit: (data: { pokedexId: number }) => unknown;
   buttonText: string;
 }) {
-  const { data: { pokedex = {} } = {} } = useRpcQuery(fetchDbRpc, {});
+  const { pokedex = {} } = useDb();
   const { selected, ...selectMon } = useSelectOption(pokedex);
 
   return (
@@ -52,7 +51,7 @@ function SelectSpecies({
 
 function downloadObjectAsJson(exportObj: unknown, exportName: string) {
   var dataStr = `data:text/json;charset=utf-8,${encodeURIComponent(
-    JSON.stringify(exportObj)
+    JSON.stringify(exportObj),
   )}`;
   var downloadAnchorNode = document.createElement("a");
   downloadAnchorNode.setAttribute("href", dataStr);
@@ -66,23 +65,27 @@ const Sorts = ["name", "pokedexId", "megaTime", "megaLevelUp"] as const;
 export function PokemonManager() {
   const [sortIndex, setSortIndex] = React.useState<number>(0);
   const sort = Sorts[sortIndex] ?? "name";
-  const { data: pokemon, refetch: refetchQuery } = useRpcQuery(
-    searchPokemonRpc,
-    { sort }
-  );
-  const { mutate: refreshDex } = useRpcMutation(refreshDexRpc);
-  const { mutate: clearCurrentMega } = useRpcMutation(clearCurrentMegaRpc);
-  const { mutate: addPokemon } = useRpcMutation(addPokemonRpc, {});
-  const { mutate: setDb, isLoading: setDbIsLoading } =
-    useRpcMutation(setDbValueRpc);
 
-  const { data: db, isLoading: dbIsLoading } = useRpcQuery(
-    fetchDbRpc,
-    {},
-    { onSuccess: () => refetchQuery() }
-  );
+  const db = useDb();
+
+  const { data: pokemon, refetch: refetchQuery } = useQuery({
+    queryKey: ["searchPokemon", sort] as const,
+    queryFn: (ctx) => searchPokemonRpc({ sort: ctx.queryKey[1] }),
+  });
+  const { mutate: refreshDex } = useMutation({ mutationFn: refreshDexRpc });
+  const { mutate: clearCurrentMega } = useMutation({
+    mutationFn: clearCurrentMegaRpc,
+  });
+  const { mutate: addPokemon } = useMutation({ mutationFn: addPokemonRpc });
+  const { mutate: setDb, isPending: setDbIsLoading } = useMutation({
+    mutationFn: setDbValueRpc,
+  });
 
   const inputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    refetchQuery();
+  }, [db, refetchQuery]);
 
   return (
     <div className={"col full robin-rounded robin-gap robin-pad"}>
@@ -112,14 +115,14 @@ export function PokemonManager() {
           {db && Object.keys(db.pokedex).length === 0 && (
             <div>Pokedex is empty!</div>
           )}
-          <button onClick={() => refreshDex({})}>Refresh Pokedex</button>
+          <button onClick={() => refreshDex()}>Refresh Pokedex</button>
 
-          <button onClick={() => clearCurrentMega({})}>Clear Mega</button>
+          <button onClick={() => clearCurrentMega()}>Clear Mega</button>
         </div>
 
         <div className={"col"} style={{ gap: "0.25rem" }}>
           <button
-            disabled={setDbIsLoading || dbIsLoading}
+            disabled={setDbIsLoading}
             onClick={() => {
               const now = new Date();
               const month = String(now.getMonth()).padStart(2, "0");
@@ -133,7 +136,7 @@ export function PokemonManager() {
           </button>
 
           <button
-            disabled={setDbIsLoading || dbIsLoading}
+            disabled={setDbIsLoading}
             onClick={() => inputRef.current?.click()}
           >
             Load DB

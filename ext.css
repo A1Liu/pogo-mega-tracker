@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 html,
 body,
 div#root {
@@ -29,4 +31,21 @@ div#root {
 
 .col > * {
   margin: 0px;
+}
+
+:root {
+  --robin-border-radius: 0.25rem;
+  --robin-spacing: 1.25rem;
+}
+
+.robin-rounded {
+  border-radius: var(--robin-border-radius);
+}
+
+.robin-pad {
+  padding: var(--robin-spacing);
+}
+
+.robin-gap {
+  gap: var(--robin-spacing);
 }

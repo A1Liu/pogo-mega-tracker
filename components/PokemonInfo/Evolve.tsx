@@ -1,4 +1,3 @@
-import { useRpcMutation, useRpcQuery } from "@robinplatform/toolkit/react/rpc";
 import { useCurrentSecond } from "../CountdownTimer";
 import {
   Species,
@@ -11,10 +10,11 @@ import {
 } from "../../domain-utils";
 import {
   evolvePokemonRpc,
-  fetchDbRpc,
   setPokemonMegaCountRpc,
+  useDb,
 } from "../../server/db.server";
 import React from "react";
+import { useMutation } from "@tanstack/react-query";
 
 export const percentGradient = (fraction: number) =>
   `linear-gradient(to right, transparent, transparent ${
@@ -30,7 +30,7 @@ export function EvolveButton({
   dexEntry: Species;
   pokemon: Pokemon;
 }) {
-  const { data: db } = useRpcQuery(fetchDbRpc, {});
+  const db = useDb();
   const { now } = useCurrentSecond();
   const megaLevel = megaLevelFromCount(pokemon.megaCount);
   const timeSinceLastMega =
@@ -38,10 +38,11 @@ export function EvolveButton({
   const megaCost = megaCostForSpecies(dexEntry, megaLevel, timeSinceLastMega);
   const timeSpentAsFraction = Math.max(
     0,
-    Math.min(1, timeSinceLastMega / MegaWaitTime[megaLevel])
+    Math.min(1, timeSinceLastMega / MegaWaitTime[megaLevel]),
   );
-  const { mutate: megaEvolve, isLoading: megaEvolveLoading } =
-    useRpcMutation(evolvePokemonRpc);
+  const { mutate: megaEvolve, isPending: megaEvolveLoading } = useMutation({
+    mutationFn: evolvePokemonRpc,
+  });
 
   return (
     <div className={"row"} style={{ gap: "0.5rem" }}>
@@ -61,7 +62,7 @@ export function EvolveButton({
           border: "0.1rem solid black",
           padding: "0.25rem",
           backgroundImage: `${percentGradient(
-            timeSpentAsFraction
+            timeSpentAsFraction,
           )}, ${MEGA_GRADIENT}`,
         }}
         disabled={
@@ -79,7 +80,7 @@ export function EvolveButton({
 
 export function MegaIndicator({ pokemon }: { pokemon: Pokemon }) {
   const { now } = useCurrentSecond();
-  const { data: db } = useRpcQuery(fetchDbRpc, {});
+  const db = useDb();
 
   if (!isCurrentMega(db?.mostRecentMega?.id, pokemon, now)) {
     return null;
@@ -115,7 +116,7 @@ function ProgressCircle({
           width: "100%",
 
           backgroundImage: `${percentGradient(
-            Math.min(Math.max(have, 0), required) / required
+            Math.min(Math.max(have, 0), required) / required,
           )}, ${MEGA_GRADIENT}`,
         }}
       >
@@ -139,8 +140,9 @@ export function MegaCount({
   pokemonId: string;
   megaCount: number;
 }) {
-  const { mutate: setMegaCount, isLoading: setMegaCountLoading } =
-    useRpcMutation(setPokemonMegaCountRpc);
+  const { mutate: setMegaCount, isPending: setMegaCountLoading } = useMutation({
+    mutationFn: setPokemonMegaCountRpc,
+  });
   const megaLevel = megaLevelFromCount(megaCount);
 
   const [forceVisible, setForceVisible] = React.useState(false);

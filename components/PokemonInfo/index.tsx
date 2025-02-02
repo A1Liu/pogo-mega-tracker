@@ -1,4 +1,3 @@
-import { useRpcMutation, useRpcQuery } from "@robinplatform/toolkit/react/rpc";
 import { CountdownTimer } from "../CountdownTimer";
 import { EditField } from "../EditableField";
 import {
@@ -9,30 +8,34 @@ import {
 } from "../../domain-utils";
 import "./pokemon-info.css";
 import {
-  fetchDbRpc,
   setPokemonMegaEndRpc,
   setPokemonMegaEnergyRpc,
   deletePokemonRpc,
   setNameRpc,
+  useDb,
 } from "../../server/db.server";
 import React from "react";
 import { usePageState, useSetPokemon } from "../PageState";
 import { TypeIcons } from "../TypeIcons";
 import { EvolveButton, MegaCount, MegaIndicator } from "./Evolve";
+import { useMutation } from "@tanstack/react-query";
 
 export function PokemonInfo({ pokemon }: { pokemon: Pokemon }) {
-  const { data: db } = useRpcQuery(fetchDbRpc, {});
-  const { mutate: setMegaEvolveTime, isLoading: setMegaEvolveTimeLoading } =
-    useRpcMutation(setPokemonMegaEndRpc);
-  const { mutate: setEnergy, isLoading: setEneryLoading } = useRpcMutation(
-    setPokemonMegaEnergyRpc
-  );
-  const { mutate: deletePokemon, isLoading: deletePokemonLoading } =
-    useRpcMutation(deletePokemonRpc);
-  const { mutate: setName, isLoading: setNameLoading } =
-    useRpcMutation(setNameRpc);
+  const db = useDb();
+  const { mutate: setMegaEvolveTime, isPending: setMegaEvolveTimeLoading } =
+    useMutation({ mutationFn: setPokemonMegaEndRpc });
+  const { mutate: setEnergy, isPending: setEneryLoading } = useMutation({
+    mutationFn: setPokemonMegaEnergyRpc,
+  });
+  const { mutate: deletePokemon, isPending: deletePokemonLoading } =
+    useMutation({ mutationFn: deletePokemonRpc });
+  const { mutate: setName, isPending: setNameLoading } = useMutation({
+    mutationFn: setNameRpc,
+  });
 
-  const { setPage } = usePageState();
+  const {
+    actions: { setPage },
+  } = usePageState();
   const setPokemon = useSetPokemon();
 
   const dexEntry = db?.pokedex[pokemon.pokedexId];
@@ -143,14 +146,14 @@ export function PokemonInfo({ pokemon }: { pokemon: Pokemon }) {
                 setMegaEvolveTime({
                   id: pokemon.id,
                   newMegaEnd: new Date(
-                    deadline.getTime() - MegaWaitTime[megaLevel]
+                    deadline.getTime() - MegaWaitTime[megaLevel],
                   ).toISOString(),
                 })
               }
               deadline={
                 new Date(
                   new Date(pokemon.lastMegaEnd).getTime() +
-                    MegaWaitTime[megaLevel]
+                    MegaWaitTime[megaLevel],
                 )
               }
             />
