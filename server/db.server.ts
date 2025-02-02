@@ -29,8 +29,6 @@ const PogoDb = z.object({
   pokemon: z.record(z.string(), Pokemon),
   evolvePlans: z.array(PlannedMega),
   mostRecentMega: z.object({ id: z.string() }).optional(),
-
-  pageState: PageState,
 });
 
 interface Actions {
@@ -41,9 +39,6 @@ const EmptyDb: PogoDb = {
   pokedex: {},
   pokemon: {},
   evolvePlans: [],
-  pageState: {
-    selectedPage: "pokemon",
-  },
 };
 
 export const useDb = create<PogoDb & { actions: Actions }>()(
@@ -82,7 +77,6 @@ export async function setDbValueRpc({ db }: { db: PogoDb }) {
     prev.pokemon = db.pokemon;
     prev.mostRecentMega = db.mostRecentMega;
     prev.evolvePlans = db.evolvePlans;
-    prev.pageState = db.pageState;
   });
 }
 
@@ -257,10 +251,3 @@ export async function setNameRpc({ id, name }: { id: string; name: string }) {
   return {};
 }
 
-export async function setPageStateRpc(pageState: Partial<PageState>) {
-  withDb((db) => {
-    db.pageState = { ...db.pageState, ...pageState };
-  });
-
-  return {};
-}
