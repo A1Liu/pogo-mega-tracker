@@ -6,6 +6,7 @@ in
 
 
 pkgs.mkShellNoCC {
+# pkgs.buildFHSUserEnv {
   packages = with pkgs; [
     # Tools
     typescript-language-server
