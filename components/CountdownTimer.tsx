@@ -51,7 +51,6 @@ export function CountdownTimer({
   deadline,
   setDeadline,
   disableEditing,
-  doneText,
 }: {
   deadline: Date;
   setDeadline?: (d: Date) => void;
